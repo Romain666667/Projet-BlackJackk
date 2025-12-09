@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon compte - Casino Blackjack</title>
+    <link rel="stylesheet" href="account_assets/account.css">
+</head>
+<body>
+    <div class="header">
+        <h1>💼 Mon Compte</h1>
+    </div>
+
+    <div class="container">
+        <?php if ($message): ?>
+            <div class="message"><?= $message ?></div>
+        <?php endif; ?>
+        
+        <?php if ($error): ?>
+            <div class="error"><?= $error ?></div>
+        <?php endif; ?>
+
+        <div class="grid">
+            <!-- Informations du compte -->
+            <div class="card">
+                <h2>👤 Informations personnelles</h2>
+                <div class="info-item">
+                    <span class="info-label">Pseudo</span>
+                    <span class="info-value"><?= htmlspecialchars($user['Pseudo']) ?></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email</span>
+                    <span class="info-value"><?= htmlspecialchars($user['Email']) ?></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Rôle</span>
+                    <span class="info-value"><?= htmlspecialchars($user['Nom_role']) ?></span>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('modalProfile')">✏️ Modifier le profil</button>
+            </div>
+
+            <!-- Solde -->
+            <div class="card">
+                <h2>💰 Solde et limites</h2>
+                <div class="info-item">
+                    <span class="info-label">Solde actuel</span>
+                    <span class="info-value"><?= number_format($user['Montant_solde'], 2) ?> €</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Limite de mise</span>
+                    <span class="info-value"><?= number_format($user['Limite_mise'], 2) ?> €</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Limite de dépôt</span>
+                    <span class="info-value"><?= number_format($user['Limit_depot'], 2) ?> €</span>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('modalDepot')">💳 Effectuer un dépôt</button>
+                <button class="btn btn-primary" onclick="openModal('modalRetrait')">💵 Effectuer un retrait</button>
+            </div>
+
+            <!-- Fidélité -->
+            <div class="card">
+                <h2>⭐ Programme fidélité</h2>
+                <div class="info-item">
+                    <span class="info-label">Niveau fidélité</span>
+                    <span class="info-value">Niveau <?= $user['Niveau_fidelite'] ?? 0 ?></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Points totaux</span>
+                    <span class="info-value"><?= $user['Point_totaux'] ?? 0 ?> pts</span>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('modalFidelite')">🎁 Détails fidélité</button>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="dashboard.php" class="btn btn-back">← Retour au Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Modal Dépôt -->
+    <div id="modalDepot" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalDepot')">&times;</span>
+            <h2>💳 Effectuer un dépôt</h2>
+            <form method="POST">
+                <input type="hidden" name="action" value="depot">
+                <div class="form-group">
+                    <label>Montant à déposer (€)</label>
+                    <input type="number" name="montant" step="0.01" min="0.01" max="<?= $user['Limit_depot'] ?>" required>
+                    <small style="color: #a0a0a0;">Limite: <?= number_format($user['Limit_depot'], 2) ?> €</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Confirmer le dépôt</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Retrait -->
+    <div id="modalRetrait" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalRetrait')">&times;</span>
+            <h2>💵 Effectuer un retrait</h2>
+            <form method="POST">
+                <input type="hidden" name="action" value="retrait">
+                <div class="form-group">
+                    <label>Montant à retirer (€)</label>
+                    <input type="number" name="montant" step="0.01" min="0.01" max="<?= $user['Montant_solde'] ?>" required>
+                    <small style="color: #a0a0a0;">Solde disponible: <?= number_format($user['Montant_solde'], 2) ?> €</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Confirmer le retrait</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Profil -->
+    <div id="modalProfile" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalProfile')">&times;</span>
+            <h2>✏️ Modifier le profil</h2>
+            <form method="POST">
+                <input type="hidden" name="action" value="modifier_profil">
+                <div class="form-group">
+                    <label>Nouveau pseudo (laisser vide si inchangé)</label>
+                    <input type="text" name="pseudo" placeholder="<?= htmlspecialchars($user['Pseudo']) ?>">
+                </div>
+                <div class="form-group">
+                    <label>Nouvel email (laisser vide si inchangé)</label>
+                    <input type="email" name="email" placeholder="<?= htmlspecialchars($user['Email']) ?>">
+                </div>
+                <div class="form-group">
+                    <label>Ancien mot de passe</label>
+                    <input type="password" name="ancien_mdp" placeholder="Requis pour changer le mot de passe">
+                </div>
+                <div class="form-group">
+                    <label>Nouveau mot de passe</label>
+                    <input type="password" name="nouveau_mdp" placeholder="Laisser vide si inchangé">
+                </div>
+                <div class="form-group">
+                    <label>Confirmer le nouveau mot de passe</label>
+                    <input type="password" name="confirm_mdp">
+                </div>
+                <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Fidélité -->
+    <div id="modalFidelite" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalFidelite')">&times;</span>
+            <h2>⭐ Programme de fidélité</h2>
+            <div class="info-item">
+                <span class="info-label">Niveau actuel</span>
+                <span class="info-value">Niveau <?= $user['Niveau_fidelite'] ?? 0 ?></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Points accumulés</span>
+                <span class="info-value"><?= $user['Point_totaux'] ?? 0 ?> points</span>
+            </div>
+            <p style="margin-top: 20px; color: #a0a0a0; line-height: 1.6;">
+                Gagnez des points à chaque partie jouée ! Plus vous jouez, plus vous montez de niveau et débloquez des avantages exclusifs.
+            </p>
+        </div>
+    </div>
+
+    <script src="account_assets/account.js"></script>
+</body>
+</html>
