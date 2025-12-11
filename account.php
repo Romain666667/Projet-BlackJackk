@@ -14,45 +14,96 @@ $error = '';
 // Traitement du dépôt
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'depot') {
     $montant = floatval($_POST['montant'] ?? 0);
-    
+
     if ($montant <= 0) {
         $error = "Le montant doit être supérieur à 0";
     } else {
         try {
             $pdo->beginTransaction();
-            
-            // Vérifier la limite de dépôt
+
+            // Récupérer limite + solde actuel
             $stmt = $pdo->prepare("SELECT Limit_depot, Montant_solde FROM Solde WHERE Id_utilisateur = :id");
             $stmt->execute(['id' => $_SESSION['user_id']]);
             $solde = $stmt->fetch();
-            
-            // Erreur si la limite de dépot est supérieur au montant demandé.
-            if ($montant > $solde['Limit_depot']) {
-                $error = "Le montant dépasse la limite de dépôt autorisée (" . number_format($solde['Limit_depot'], 2) . " €)";
-            } else {
-                // Mettre à jour le solde
+
+            if (!$solde) {
+                throw new Exception("Impossible de récupérer les informations de solde.");
+            }
+
+            // ***** Vérification de la limite hebdomadaire *****
+
+            // Total des dépôts depuis lundi
+            $stmt = $pdo->prepare("
+                SELECT COALESCE(SUM(Montant), 0) AS total_semaine
+                FROM Transaction
+                WHERE Id_utilisateur = :id
+                AND Type_transaction = 'Dépôt'
+                AND YEARWEEK(Date_transaction, 1) = YEARWEEK(NOW(), 1)
+            ");
+            $stmt->execute(['id' => $_SESSION['user_id']]);
+            $totalSemaine = floatval($stmt->fetch()['total_semaine']);
+
+            // Vérifier si on dépasse la limite
+            if ($totalSemaine + $montant > $solde['Limit_depot']) {
+                $restant = $solde['Limit_depot'] - $totalSemaine;
+
+                if ($restant < 0) $restant = 0;
+
+                $error = "⛔ Vous avez atteint votre limite hebdomadaire de dépôt (" 
+                      . number_format($solde['Limit_depot'], 2) . " €).<br>"
+                      . "Déjà déposés cette semaine : " . number_format($totalSemaine, 2) . " €.<br>"
+                      . "Montant maximum restant cette semaine : " . number_format($restant, 2) . " €.";
+
+                $pdo->rollBack();
+            } 
+            else {
+
+                // ***** Dépôt autorisé *****
+
+                // Mise à jour du solde
                 $nouveauSolde = $solde['Montant_solde'] + $montant;
                 $stmt = $pdo->prepare("UPDATE Solde SET Montant_solde = :montant WHERE Id_utilisateur = :id");
                 $stmt->execute(['montant' => $nouveauSolde, 'id' => $_SESSION['user_id']]);
-                
-                // Enregistrer la transaction
-                $getMaxId = $pdo->query("SELECT COALESCE(MAX(Id_transaction), 0) + 1 as next_id FROM Transaction");
+
+                // Bonus fidélité : 50% du dépôt
+                $pointsFidelite = $montant * 0.5;
+                $stmt = $pdo->prepare("
+                    UPDATE Fidelite 
+                    SET Point_totaux = Point_totaux + :points 
+                    WHERE Id_fidelite = (SELECT Id_fidelite FROM Utilisateur WHERE Id_utilisateur = :id)
+                ");
+                $stmt->execute(['points' => $pointsFidelite, 'id' => $_SESSION['user_id']]);
+
+                // ID de transaction suivant
+                $getMaxId = $pdo->query("SELECT COALESCE(MAX(Id_transaction), 0) + 1 AS next_id FROM Transaction");
                 $nextId = $getMaxId->fetch()['next_id'];
-                
-                $stmt = $pdo->prepare("INSERT INTO Transaction (Id_transaction, Type_transaction, Montant, Date_transaction, Description, Id_utilisateur) 
-                                      VALUES (:id, 'Dépôt', :montant, NOW(), 'Dépôt sur le compte', :user_id)");
-                $stmt->execute(['id' => $nextId, 'montant' => $montant, 'user_id' => $_SESSION['user_id']]);
-                
+
+                // Ajouter la transaction
+                $stmt = $pdo->prepare("
+                    INSERT INTO Transaction 
+                    (Id_transaction, Type_transaction, Montant, Date_transaction, Description, Id_utilisateur) 
+                    VALUES (:id, 'Dépôt', :montant, NOW(), 'Dépôt sur le compte', :user_id)
+                ");
+                $stmt->execute([
+                    'id' => $nextId,
+                    'montant' => $montant,
+                    'user_id' => $_SESSION['user_id']
+                ]);
+
                 $pdo->commit();
+
                 $_SESSION['solde'] = $nouveauSolde;
+
                 $message = "Dépôt de " . number_format($montant, 2) . " € effectué avec succès !";
             }
+
         } catch (Exception $e) {
             $pdo->rollBack();
             $error = "Erreur lors du dépôt : " . $e->getMessage();
         }
     }
 }
+
 
 // Traitement du retrait
 if ($_SERVER['REQUEST_METHOD'] === 'POST' 
@@ -124,6 +175,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'modifier_limite') {
+
+    $nouvelleLimite = floatval($_POST['nouvelle_limite']);
+    $password = $_POST['password_limite'] ?? '';
+
+    if ($nouvelleLimite <= 0) {
+        $error = "La limite doit être supérieure à 0.";
+    } else {
+        // Récupérer le mot de passe stocké en clair
+        $stmt = $pdo->prepare("SELECT Mot_de_passe_hash FROM Utilisateur WHERE Id_utilisateur = :id");
+        $stmt->execute(['id' => $_SESSION['user_id']]);
+        $user_check = $stmt->fetch();
+
+        // Comparer en clair
+        if ($password !== $user_check['Mot_de_passe_hash']) {
+            $error = "Mot de passe incorrect.";
+        } else {
+            // Mise à jour de la limite
+            $stmt = $pdo->prepare("UPDATE Solde SET Limit_depot = :limite WHERE Id_utilisateur = :id");
+            $stmt->execute([
+                'limite' => $nouvelleLimite,
+                'id' => $_SESSION['user_id']
+            ]);
+
+            $message = "La limite de dépôt a bien été modifiée !";
+        }
+    }
+}
 
 // Traitement de la modification du profil
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'modifier_profil') {

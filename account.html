@@ -54,8 +54,12 @@
                     <span class="info-label">Limite de dépôt</span>
                     <span class="info-value"><?= number_format($user['Limit_depot'], 2) ?> €</span>
                 </div>
+
                 <button class="btn btn-primary" onclick="openModal('modalDepot')">💳 Effectuer un dépôt</button>
                 <button class="btn btn-primary" onclick="openModal('modalRetrait')">💵 Effectuer un retrait</button>
+
+                <!-- 🔥 Nouveau bouton -->
+                <button class="btn btn-primary" onclick="openModal('modalLimite')">🛑 Changer la limite</button>
             </div>
 
             <!-- Fidélité -->
@@ -158,8 +162,33 @@
                 <span class="info-value"><?= $user['Point_totaux'] ?? 0 ?> points</span>
             </div>
             <p style="margin-top: 20px; color: #a0a0a0; line-height: 1.6;">
-                Gagnez des points à chaque partie jouée ! Plus vous jouez, plus vous montez de niveau et débloquez des avantages exclusifs.
+                Gagnez des points à chaque partie jouée et à chaque dépôt ! Plus vous jouez, plus vous montez de niveau et débloquez des avantages exclusifs.
             </p>
+        </div>
+    </div>
+
+    <!-- 🔥 Modal Modifier limite -->
+    <div id="modalLimite" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalLimite')">&times;</span>
+            <h2>🛑 Changer la limite de dépôt</h2>
+
+            <form method="POST">
+                <input type="hidden" name="action" value="modifier_limite">
+
+                <div class="form-group">
+                    <label>Nouvelle limite (€)</label>
+                    <input type="number" name="nouvelle_limite" step="0.01" min="0.01" required>
+                    <small style="color: #a0a0a0;">Limite actuelle : <?= number_format($user['Limit_depot'], 2) ?> €</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Mot de passe obligatoire</label>
+                    <input type="password" name="password_limite" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Modifier la limite</button>
+            </form>
         </div>
     </div>
 

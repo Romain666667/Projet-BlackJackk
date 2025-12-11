@@ -294,6 +294,12 @@ if (!isset($_SESSION['user_id'])) {
                 <h3>Le croupier</h3>
                 <p>Le croupier doit tirer jusqu'à atteindre au moins 17 points. Il ne peut pas prendre de décisions stratégiques et doit suivre ces règles strictes.</p>
             </div>
+
+            <div class="rule-card">
+                <div class="icon">💎</div>
+                <h3>Les bonus</h3>
+                <p>Le bonus « 21 +3 » est une mise additionnelle facultative dont l'objectif est basé sur la combinaison de 3 cartes, en utilisant la 1ère carte du croupier et les 2 cartes initiales du joueur. Le second bonus est la Perfect Pair, cela est la combinaison des 2 premières cartes du joueur, il faut que les 2 premières cartes du joueur soient une paire.</p>
+            </div>
         </div>
 
         <!-- Valeur des cartes -->
